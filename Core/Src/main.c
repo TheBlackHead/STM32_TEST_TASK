@@ -50,13 +50,13 @@ typedef struct {
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-char tx_buffer[32] = {0};
-char buffer[32] = {0};
-uint8_t indx = 0;
+static char tx_buffer[32] = {0};
+static char buffer[32] = {0};
+static uint8_t indx = 0;
 
-uint8_t rx_buffer[1];
+static uint8_t rx_buffer[1];
 
-Point points[] = {
+const Point points[] = {
     {0, 1},
     {10, 20},
     {20, 30},
@@ -92,36 +92,48 @@ int16_t lagrange_interpolation(int16_t x) {
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	// Check that the interruption is caused by UART1
 	if(huart->Instance == USART1) {
+		// Flag to check if a digit is found in the input data from UART1
 		static uint8_t is_founded_number = 0;
 
+		// Inserting data from the input buffer into the string buffer
 		memcpy(buffer + indx, rx_buffer, ARRAY_SIZE(rx_buffer));
 
+		// Check to ensure that the buffer is not exceeded
 		if(++indx == ARRAY_SIZE(buffer)) {
 			indx = 0;
 			is_founded_number = 0;
 		}
 
+		// Checking that there is a number among the input data
 		if(isdigit(rx_buffer[0])) {
 		    is_founded_number = 1;
 		}
 
+		// Searching for CRLT in the buffer
 		if(strstr(buffer, "\r\n") != 0) {
 			if(is_founded_number) {
+				// Resetting the buffer backlog
 				memset(buffer + indx, 0, sizeof(buffer) - indx);
 
+				// Copying string buffer to tx_buffer, in order to secure the future transmission of the response on the UART from new input data
 				memcpy(tx_buffer, buffer, sizeof(buffer));
 
+				// Finding y through the Lagrange polynomial
 				int16_t y = lagrange_interpolation(atoi(tx_buffer));
+
+				// Writing to tx_buffer the response with CRLT
 				snprintf(tx_buffer, sizeof(tx_buffer), "%d\r\n", y);
 
+				// Sending via UART1
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen(tx_buffer), 50);
 
 				is_founded_number = 0;
 			}
 			indx = 0;
 		}
-
+		// Cyclic gartering of UART1 for Callback operation continuously
 		HAL_UART_Receive_IT(&huart1, rx_buffer, ARRAY_SIZE(rx_buffer));
 	}
 }
@@ -160,6 +172,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // HAL_UART_Receive_IT calls HAL_UART_RxCpltCallback after receiving each character on the UART
   HAL_UART_Receive_IT(&huart1, rx_buffer, ARRAY_SIZE(rx_buffer));
 
   /* USER CODE END 2 */
