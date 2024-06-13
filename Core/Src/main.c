@@ -101,7 +101,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		memcpy(buffer + indx, rx_buffer, ARRAY_SIZE(rx_buffer));
 
 		// Check to ensure that the buffer is not exceeded
-		if(++indx == ARRAY_SIZE(buffer)) {
+		if(++indx == ARRAY_SIZE(buffer) - 1) {
 			indx = 0;
 			is_founded_number = 0;
 		}
