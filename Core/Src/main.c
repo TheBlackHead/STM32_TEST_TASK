@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -46,7 +47,8 @@ typedef struct {
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-char buffer[32];
+char tx_buffer[32] = {0};
+char buffer[32] = {0};
 uint8_t indx = 0;
 
 uint8_t rx_buffer[1];
@@ -88,30 +90,22 @@ int16_t lagrange_interpolation(int16_t x) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == USART1) {
-		static uint8_t is_founded_r = 0;
-
 		memcpy(buffer + indx, rx_buffer, ARRAY_SIZE(rx_buffer));
 
 		if(++indx == ARRAY_SIZE(buffer)) {
 			indx = 0;
 		}
 
-		if(rx_buffer[0] == '\r') {
-			is_founded_r = 1;
-		}
-
-		if(rx_buffer[0] == '\n' && is_founded_r) {
+		if(strstr(buffer, "\r\n") != 0) {
 			memset(buffer + indx, 0, sizeof(buffer) - indx);
 
-			int16_t y = lagrange_interpolation(atoi(buffer));
-			snprintf(buffer, sizeof(buffer), "%d\r\n", y);
+			memcpy(tx_buffer, buffer, sizeof(buffer));
 
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 50);
+			int16_t y = lagrange_interpolation(atoi(tx_buffer));
+			snprintf(tx_buffer, sizeof(tx_buffer), "%d\r\n", y);
+
+			HAL_UART_Transmit(&huart1, tx_buffer, strlen(tx_buffer), 50);
 			indx = 0;
-		}
-
-		if(rx_buffer[0] != '\r') {
-			is_founded_r = 0;
 		}
 
 		HAL_UART_Receive_IT(&huart1, rx_buffer, ARRAY_SIZE(rx_buffer));
