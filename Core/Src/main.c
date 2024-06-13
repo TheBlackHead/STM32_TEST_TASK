@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -90,21 +93,32 @@ int16_t lagrange_interpolation(int16_t x) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == USART1) {
+		static uint8_t is_founded_number = 0;
+
 		memcpy(buffer + indx, rx_buffer, ARRAY_SIZE(rx_buffer));
 
 		if(++indx == ARRAY_SIZE(buffer)) {
 			indx = 0;
+			is_founded_number = 0;
+		}
+
+		if(isdigit(rx_buffer[0])) {
+		    is_founded_number = 1;
 		}
 
 		if(strstr(buffer, "\r\n") != 0) {
-			memset(buffer + indx, 0, sizeof(buffer) - indx);
+			if(is_founded_number) {
+				memset(buffer + indx, 0, sizeof(buffer) - indx);
 
-			memcpy(tx_buffer, buffer, sizeof(buffer));
+				memcpy(tx_buffer, buffer, sizeof(buffer));
 
-			int16_t y = lagrange_interpolation(atoi(tx_buffer));
-			snprintf(tx_buffer, sizeof(tx_buffer), "%d\r\n", y);
+				int16_t y = lagrange_interpolation(atoi(tx_buffer));
+				snprintf(tx_buffer, sizeof(tx_buffer), "%d\r\n", y);
 
-			HAL_UART_Transmit(&huart1, tx_buffer, strlen(tx_buffer), 50);
+				HAL_UART_Transmit(&huart1, tx_buffer, strlen(tx_buffer), 50);
+
+				is_founded_number = 0;
+			}
 			indx = 0;
 		}
 
